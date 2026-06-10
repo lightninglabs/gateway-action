@@ -1,0 +1,146 @@
+name: 'gateway review (public entry point)'
+description: >-
+  Publicly-resolvable entry point for gateway. Mints an App token, checks out
+  the private gateway runtime at a pinned ref, and runs the review. Usable from
+  public OR private consumer repos.
+
+# ---------------------------------------------------------------------------
+# Why this repo exists
+# ---------------------------------------------------------------------------
+# The review runtime lives in the PRIVATE repo `lightninglabs/gateway`. GitHub
+# only extends a private repo's actions to *private and internal* org repos, so
+# a PUBLIC consumer (e.g. lightninglabs/neutrino) cannot resolve
+# `lightninglabs/gateway/.github/actions/review@<tag>` — the job fails at setup
+# with "Unable to resolve action ... not found".
+#
+# This action lives in a PUBLIC repo, so any consumer can resolve it. It then
+# pulls the private runtime at execution time using a token minted from the
+# consumer-passed App credentials:
+#
+#   1. actions/create-github-app-token  → mint an installation token from
+#      app_id / private_key, scoped to read lightninglabs/gateway. (This is
+#      GitHub's own public action, which sidesteps the chicken-and-egg of
+#      "the token-minting script lives in the private repo".)
+#   2. actions/checkout                 → pull lightninglabs/gateway at the
+#      PINNED ref below, using that token.
+#   3. exec scripts/run-review.sh       → same entry point as the private
+#      action; run-review.sh mints its OWN GH_TOKEN via authenticate.sh from
+#      the same env vars, so the checkout token is not threaded through.
+#
+# The review logic, prompts, and skills stay private. Only this thin entry
+# point is public. There is NO new trust exposure: the consumer already runs
+# this exact runtime today — this only changes where the entry point resolves.
+
+# ---------------------------------------------------------------------------
+# VERSIONING (lockstep)
+# ---------------------------------------------------------------------------
+# GATEWAY_RUNTIME_REF below pins the private runtime version. It is bumped in
+# lockstep with each gateway release: when gateway tags vX.Y.Z, update the ref
+# here to vX.Y.Z and tag this repo vX.Y.Z the same day. Consumers pin THIS
+# action by full commit SHA (+ trailing version comment), giving them a single
+# version axis — their pinned SHA deterministically maps to one runtime ref.
+
+inputs:
+  event_name:
+    description: 'GitHub event that triggered the consumer shim (issue_comment, pull_request).'
+    required: true
+  event_action:
+    description: 'Event-specific action (e.g. created, review_requested, closed).'
+    required: false
+    default: ''
+  repo:
+    description: 'Consumer repo in owner/name form (typically github.repository).'
+    required: true
+  pr_number:
+    description: 'Pull request number.'
+    required: true
+  actor:
+    description: 'Login of the user that triggered the event.'
+    required: true
+  comment_body:
+    description: 'Body of the triggering comment, for issue_comment events.'
+    required: false
+    default: ''
+  comment_id:
+    description: 'Numeric id of the triggering comment, for issue_comment events. Used to react with a 👍 on success.'
+    required: false
+    default: ''
+  installation_id:
+    description: 'GitHub App installation ID for the consumer repo. Find it on the App settings → Install App page.'
+    required: true
+  app_id:
+    description: 'gateway GitHub App ID. Consumers pass this via `with: app_id:` from their org secret (typically GATEWAY_APP_ID).'
+    required: true
+  private_key:
+    description: 'gateway GitHub App private key, PEM contents. Consumers pass this via `with: private_key:` from their org secret (typically GATEWAY_PRIVATE_KEY).'
+    required: true
+  anthropic_api_key:
+    description: 'Anthropic API key for the /code-review skill (org secret ANTHROPIC_API_KEY). Either this or claude_code_oauth_token must be set; if both are set, API is tried first and OAuth is the fallback.'
+    required: false
+    default: ''
+  claude_code_oauth_token:
+    description: 'Claude Code OAuth token (org secret CLAUDE_CODE_OAUTH_TOKEN). Either this or anthropic_api_key must be set.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # 1. Mint a token that can read the private gateway runtime. Scoped to the
+    #    single gateway repo — the checkout below needs nothing more.
+    - name: Mint token to read gateway runtime
+      id: app-token
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        app-id: ${{ inputs.app_id }}
+        private-key: ${{ inputs.private_key }}
+        owner: lightninglabs
+        repositories: gateway
+
+    # 2. Pull the private runtime at the pinned, lockstep ref. persist-credentials
+    #    is off — run-review.sh authenticates independently for its gh calls.
+    - name: Checkout gateway runtime
+      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      with:
+        repository: lightninglabs/gateway
+        ref: v0.4.2 # GATEWAY_RUNTIME_REF — bump in lockstep with gateway releases
+        token: ${{ steps.app-token.outputs.token }}
+        path: .gateway-runtime
+        persist-credentials: false
+
+    - name: Install Claude Code CLI
+      shell: bash
+      run: npm install -g @anthropic-ai/claude-code
+
+    # 3. Same entry point as the private action. run-review.sh derives its own
+    #    script dir from BASH_SOURCE, so relative paths into scripts/, handlers/,
+    #    skills/ resolve correctly from the checked-out tree.
+    - name: Run gateway
+      shell: bash
+      env:
+        GATEWAY_APP_ID: ${{ inputs.app_id }}
+        GATEWAY_PRIVATE_KEY: ${{ inputs.private_key }}
+        GATEWAY_INSTALLATION_ID: ${{ inputs.installation_id }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        CLAUDE_CODE_OAUTH_TOKEN: ${{ inputs.claude_code_oauth_token }}
+        # All inputs flow through env, not direct ${{ … }} substitution into the
+        # run-script body. Substituting user-controlled content (especially
+        # comment_body) into shell text triggers backtick command-substitution
+        # and parenthesis subshell parsing — both a crash hazard and a
+        # shell-injection surface.
+        INPUT_EVENT_NAME:    ${{ inputs.event_name }}
+        INPUT_EVENT_ACTION:  ${{ inputs.event_action }}
+        INPUT_REPO:          ${{ inputs.repo }}
+        INPUT_PR_NUMBER:     ${{ inputs.pr_number }}
+        INPUT_ACTOR:         ${{ inputs.actor }}
+        INPUT_COMMENT_BODY:  ${{ inputs.comment_body }}
+        INPUT_COMMENT_ID:    ${{ inputs.comment_id }}
+      run: |
+        "${GITHUB_WORKSPACE}/.gateway-runtime/scripts/run-review.sh" \
+          --event-name   "$INPUT_EVENT_NAME" \
+          --event-action "$INPUT_EVENT_ACTION" \
+          --repo         "$INPUT_REPO" \
+          --pr           "$INPUT_PR_NUMBER" \
+          --actor        "$INPUT_ACTOR" \
+          --comment-body "$INPUT_COMMENT_BODY" \
+          --comment-id   "$INPUT_COMMENT_ID"
