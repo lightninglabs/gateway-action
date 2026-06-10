@@ -82,3 +82,7 @@ axis.
 | gateway-action | gateway runtime ref |
 |----------------|---------------------|
 | `v0.4.2`       | `v0.4.2`            |
+
+## License
+
+[MIT](LICENSE)
