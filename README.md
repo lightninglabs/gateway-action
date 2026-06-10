@@ -22,19 +22,22 @@ private; only this thin entry point is public.
 
 The composite action ([`action.yml`](action.yml)) runs three steps:
 
-1. **Mint token** — [`actions/create-github-app-token`](https://github.com/actions/create-github-app-token)
-   mints an installation token from the consumer's `app_id` / `private_key`,
-   scoped to read `lightninglabs/gateway`. Using GitHub's own public action
-   here sidesteps the chicken-and-egg of "the token-minting script lives in the
-   private repo."
+1. **Mint bootstrap token** — [`bootstrap-token.sh`](bootstrap-token.sh) mints a
+   **least-privilege** installation token (`contents:read` on
+   `lightninglabs/gateway` only) from the consumer's `app_id` / `private_key`.
+   It discovers the gateway installation rather than hardcoding an id. This bit
+   of logic must live here because it runs *before* the private runtime is on
+   disk.
 2. **Checkout runtime** — [`actions/checkout`](https://github.com/actions/checkout)
-   pulls `lightninglabs/gateway` at a pinned ref using that token.
+   pulls `lightninglabs/gateway` at `runtime_ref` using that bootstrap token.
 3. **Run** — execs `scripts/run-review.sh` from the checked-out tree, the same
-   entry point as the private action. `run-review.sh` mints its own token for
-   its `gh` calls, so the checkout token is not reused.
+   entry point as the private action. `run-review.sh` mints its *own* token
+   (scoped to the **consumer's** install, with review write perms) — a
+   different installation and scope from the bootstrap token.
 
-No new trust exposure: the consumer already runs this exact runtime today —
-this only changes *where the entry point resolves*.
+Two tokens, two installations — see [docs/architecture.md](docs/architecture.md)
+for the full picture. No new trust exposure: the consumer already runs this
+exact runtime today — this only changes *where the entry point resolves*.
 
 ## Usage
 
