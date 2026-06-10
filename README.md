@@ -58,9 +58,12 @@ marked values. Minimal shape:
           installation_id: <INSTALLATION_ID>
           app_id:                  ${{ secrets.GATEWAY_APP_ID }}
           private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
-          anthropic_api_key:       ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
+
+At least one of `claude_code_oauth_token` or `anthropic_api_key` must be set;
+the example uses OAuth. To use an Anthropic API key instead (tried first if both
+are set), add `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`.
 
 Pin `uses:` to a **full commit SHA** with a trailing `# vX.Y.Z` comment — never
 a bare tag. Full onboarding (App install, secrets, installation id) lives in the

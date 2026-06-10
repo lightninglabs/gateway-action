@@ -51,10 +51,10 @@ jobs:
           comment_id:      ${{ github.event.comment.id }}
           installation_id: REPLACE_WITH_INSTALLATION_ID
           # Credentials — passed as `with:` inputs (composite actions cannot
-          # declare a `secrets:` block). At least one of anthropic_api_key or
-          # claude_code_oauth_token must be set; both is fine — API is tried
-          # first, OAuth is fallback.
+          # declare a `secrets:` block). At least one of claude_code_oauth_token
+          # or anthropic_api_key must be set. This template uses OAuth; to use an
+          # Anthropic API key instead (tried first if both are set), add:
+          #   anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           app_id:                  ${{ secrets.GATEWAY_APP_ID }}
           private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
-          anthropic_api_key:       ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
