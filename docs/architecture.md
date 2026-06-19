@@ -64,4 +64,4 @@ The composite steps in [`action.yml`](../action.yml):
 
 ## Versioning (lockstep)
 
-This repo is versioned in lockstep with `lightninglabs/gateway`. Each release tag here sets the `runtime_ref` input default to the matching gateway runtime ref. A given `gateway-action` SHA therefore maps deterministically to one runtime version — consumers track a single version axis. The `runtime_ref` input exists only as an override for testing an unreleased runtime.
+This repo is versioned in lockstep with `lightninglabs/gateway`. Each release sets the `runtime_ref` input default to the matching gateway runtime ref, so a given `gateway-action` SHA maps to one runtime version by default. That default is a **tag**, which is movable — so for an immutable deployment, consumers pin `runtime_ref` to a gateway commit SHA explicitly (two pins, tracked in lockstep). The `runtime_ref` input also doubles as the override for testing an unreleased runtime.

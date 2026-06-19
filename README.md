@@ -48,6 +48,7 @@ marked values. Minimal shape:
 ```yaml
       - uses: lightninglabs/gateway-action@<COMMIT_SHA> # vX.Y.Z
         with:
+          runtime_ref:     <GATEWAY_COMMIT_SHA> # vX.Y.Z
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
           repo:            ${{ github.repository }}
@@ -65,9 +66,17 @@ At least one of `claude_code_oauth_token` or `anthropic_api_key` must be set;
 the example uses OAuth. To use an Anthropic API key instead (tried first if both
 are set), add `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`.
 
-Pin `uses:` to a **full commit SHA** with a trailing `# vX.Y.Z` comment — never
-a bare tag. Full onboarding (App install, secrets, installation id) lives in the
-private repo's `docs/consumer-setup.md`.
+Pin **both** to a full commit SHA with a trailing `# vX.Y.Z` comment — never a
+bare tag:
+
+- `uses:` → a `gateway-action` commit SHA.
+- `runtime_ref:` → the matching `lightninglabs/gateway` runtime commit SHA.
+
+The action SHA alone is not enough: it fixes the *action* code but resolves the
+runtime at `runtime_ref`, which defaults to a movable tag. Pinning `runtime_ref`
+to a commit SHA closes that gap, so a re-tagged runtime can't change what runs
+without a consumer PR. Full onboarding (App install, secrets, installation id)
+lives in the private repo's `docs/consumer-setup.md`.
 
 ## Prerequisites
 
@@ -80,10 +89,13 @@ private repo's `docs/consumer-setup.md`.
 ## Versioning
 
 This repo is versioned in **lockstep** with `lightninglabs/gateway`. Each
-release tag here pins the matching gateway runtime ref (the `ref:` on the
-checkout step in `action.yml`). A given `gateway-action` SHA therefore maps
-deterministically to one runtime version — consumers track a single version
-axis.
+release sets the `runtime_ref` *default* to the matching gateway runtime tag, so
+a given `gateway-action` SHA maps to one runtime version for convenience.
+
+That default is a **tag**, which is movable, so for an immutable deployment pin
+`runtime_ref` to a gateway commit SHA explicitly (see above). Both pins then
+track in lockstep: bump the `uses:` SHA and the `runtime_ref` SHA together,
+updating both trailing `# vX.Y.Z` comments.
 
 | gateway-action | gateway runtime ref |
 |----------------|---------------------|

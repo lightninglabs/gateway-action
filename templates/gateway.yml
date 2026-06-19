@@ -12,9 +12,13 @@ name: gateway
 #   1. The `@<SHA>` on the `uses:` line — pin to a full commit SHA of a
 #      gateway-action release, with a trailing `# vX.Y.Z` comment.
 #      See https://github.com/lightninglabs/gateway-action/releases.
-#   2. `installation_id` — the numeric App installation id for *this* repo
+#   2. `runtime_ref` — pin to the gateway *runtime* commit SHA for the same
+#      release (trailing `# vX.Y.Z`). Without it, runtime_ref defaults to a
+#      movable tag, so a re-tagged runtime could change what runs with no
+#      consumer PR. Pinning both axes routes every upgrade through review.
+#   3. `installation_id` — the numeric App installation id for *this* repo
 #      (see gateway docs/consumer-setup.md).
-#   3. The Anthropic / Claude auth secret(s) you have available (one of
+#   4. The Anthropic / Claude auth secret(s) you have available (one of
 #      ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be set; both are
 #      accepted with API tried first and OAuth as fallback).
 #
@@ -40,8 +44,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.4.2
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.4.3
         with:
+          # Pin the private runtime to an immutable commit (matches the action
+          # SHA-pin above). Without this it defaults to a movable tag, so a
+          # re-tagged runtime could change what runs with no consumer PR.
+          runtime_ref: REPLACE_WITH_GATEWAY_COMMIT_SHA # v0.4.3
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
           repo:            ${{ github.repository }}
