@@ -21,9 +21,9 @@ The single idea that makes this work is that **two different installation tokens
 | Token | Minted by | Installation | Scope | Used for |
 |-------|-----------|--------------|-------|----------|
 | **bootstrap** | `bootstrap-token.sh` (this repo) | the `gateway` repo's own install | `contents:read` on **`gateway` only** | checking out the private runtime |
-| **runtime** | `scripts/authenticate.sh` (private runtime) | the **consumer's** install (`installation_id` input) | full review perms (checks/issues/pulls write) | posting the review on the consumer PR |
+| **runtime** | `scripts/authenticate.sh` (private runtime) | the **consumer's** install (resolved from the repo, or the optional `installation_id` input) | full review perms (checks/issues/pulls write) | posting the review on the consumer PR |
 
-The consumer's `installation_id` token cannot read `gateway` — it is scoped to the consumer's own repos. That is exactly why the bootstrap token exists. It is the App's own token, minted from the same `app_id` / `private_key` the consumer already passes, but deliberately narrowed to read-only access to one repo.
+The consumer's runtime token cannot read `gateway` — it is scoped to the consumer's own repos. That is exactly why the bootstrap token exists. It is the App's own token, minted from the same `app_id` / `private_key` the consumer already passes, but deliberately narrowed to read-only access to one repo.
 
 `bootstrap-token.sh` also **discovers** the gateway installation (`GET /repos/lightninglabs/gateway/installation`, authed with the App JWT) rather than hardcoding the org installation id.
 

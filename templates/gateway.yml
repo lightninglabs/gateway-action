@@ -12,11 +12,13 @@ name: gateway
 #   1. The `@<SHA>` on the `uses:` line — pin to a full commit SHA of a
 #      gateway-action release, with a trailing `# vX.Y.Z` comment.
 #      See https://github.com/lightninglabs/gateway-action/releases.
-#   2. `installation_id` — the numeric App installation id for *this* repo
-#      (see gateway docs/consumer-setup.md).
-#   3. The Anthropic / Claude auth secret(s) you have available (one of
+#   2. The Anthropic / Claude auth secret(s) you have available (one of
 #      ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN must be set; both are
 #      accepted with API tried first and OAuth as fallback).
+#
+# `installation_id` is optional and omitted below: the runtime resolves the App
+# install for this repo from app_id/private_key. Add it only to pin a specific
+# installation (see gateway docs/consumer-setup.md).
 #
 # gateway fires on:
 #   - issue_comment.created          — a /gateway <command> comment on a PR
@@ -40,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.4.2
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.4.4
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
@@ -49,7 +51,6 @@ jobs:
           actor:           ${{ github.event.sender.login }}
           comment_body:    ${{ github.event.comment.body }}
           comment_id:      ${{ github.event.comment.id }}
-          installation_id: REPLACE_WITH_INSTALLATION_ID
           # Credentials — passed as `with:` inputs (composite actions cannot
           # declare a `secrets:` block). At least one of claude_code_oauth_token
           # or anthropic_api_key must be set. This template uses OAuth; to use an

@@ -69,8 +69,9 @@ inputs:
     required: false
     default: ''
   installation_id:
-    description: 'GitHub App installation ID for the consumer repo. Find it on the App settings → Install App page.'
-    required: true
+    description: 'GitHub App installation ID for the consumer repo. Optional: leave unset and the runtime resolves the install covering the repo from app_id/private_key. Set it only to pin a specific installation.'
+    required: false
+    default: ''
   app_id:
     description: 'gateway GitHub App ID. Consumers pass this via `with: app_id:` from their org secret (typically GATEWAY_APP_ID).'
     required: true
@@ -88,7 +89,7 @@ inputs:
   runtime_ref:
     description: 'Ref (tag/branch/SHA) of the private lightninglabs/gateway runtime to check out and run. Defaults to the release this action repo was tagged in lockstep with. Override only for testing an unreleased runtime.'
     required: false
-    default: 'v0.4.3'
+    default: 'v0.4.4'
 
 runs:
   using: composite

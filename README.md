@@ -42,8 +42,8 @@ exact runtime today — this only changes *where the entry point resolves*.
 ## Usage
 
 Copy [`templates/gateway.yml`](templates/gateway.yml) to
-`.github/workflows/gateway.yml` in your consumer repo and fill in the three
-marked values. Minimal shape:
+`.github/workflows/gateway.yml` in your consumer repo and fill in the marked
+values. Minimal shape:
 
 ```yaml
       - uses: lightninglabs/gateway-action@<COMMIT_SHA> # vX.Y.Z
@@ -55,19 +55,22 @@ marked values. Minimal shape:
           actor:           ${{ github.event.sender.login }}
           comment_body:    ${{ github.event.comment.body }}
           comment_id:      ${{ github.event.comment.id }}
-          installation_id: <INSTALLATION_ID>
           app_id:                  ${{ secrets.GATEWAY_APP_ID }}
           private_key:             ${{ secrets.GATEWAY_PRIVATE_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
+
+`installation_id` is optional — omit it and the runtime resolves the App install
+covering this repo from `app_id`/`private_key`. Set it only to pin a specific
+installation.
 
 At least one of `claude_code_oauth_token` or `anthropic_api_key` must be set;
 the example uses OAuth. To use an Anthropic API key instead (tried first if both
 are set), add `anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}`.
 
 Pin `uses:` to a **full commit SHA** with a trailing `# vX.Y.Z` comment — never
-a bare tag. Full onboarding (App install, secrets, installation id) lives in the
-private repo's `docs/consumer-setup.md`.
+a bare tag. Full onboarding (App install, secrets) lives in the private repo's
+`docs/consumer-setup.md`.
 
 ## Prerequisites
 
