@@ -86,10 +86,14 @@ inputs:
     description: 'Claude Code OAuth token (org secret CLAUDE_CODE_OAUTH_TOKEN). Either this or anthropic_api_key must be set.'
     required: false
     default: ''
+  comment_in_reply_to:
+    description: 'For pull_request_review_comment events: the thread-root comment id (github.event.comment.in_reply_to_id). Lets inline /gateway dismiss, promote, and explain infer the finding from the thread.'
+    required: false
+    default: ''
   runtime_ref:
     description: 'Ref (tag/branch/SHA) of the private lightninglabs/gateway runtime to check out and run. Defaults to the release this action repo was tagged in lockstep with. Override only for testing an unreleased runtime.'
     required: false
-    default: 'v0.4.4'
+    default: 'v0.5.0'
 
 runs:
   using: composite
@@ -146,6 +150,7 @@ runs:
         INPUT_ACTOR:         ${{ inputs.actor }}
         INPUT_COMMENT_BODY:  ${{ inputs.comment_body }}
         INPUT_COMMENT_ID:    ${{ inputs.comment_id }}
+        INPUT_COMMENT_IN_REPLY_TO: ${{ inputs.comment_in_reply_to }}
       run: |
         "${GITHUB_WORKSPACE}/.gateway-runtime/scripts/run-review.sh" \
           --event-name   "$INPUT_EVENT_NAME" \
@@ -154,4 +159,5 @@ runs:
           --pr           "$INPUT_PR_NUMBER" \
           --actor        "$INPUT_ACTOR" \
           --comment-body "$INPUT_COMMENT_BODY" \
-          --comment-id   "$INPUT_COMMENT_ID"
+          --comment-id   "$INPUT_COMMENT_ID" \
+          --comment-in-reply-to "$INPUT_COMMENT_IN_REPLY_TO"
