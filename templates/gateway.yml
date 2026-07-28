@@ -57,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.5.0
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.6.0
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
