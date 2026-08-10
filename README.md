@@ -90,7 +90,15 @@ axis.
 
 | gateway-action | gateway runtime ref |
 |----------------|---------------------|
+| `v0.6.1`       | `v0.6.1`            |
+| `v0.6.0`       | `v0.6.0`            |
 | `v0.4.2`       | `v0.4.2`            |
+
+Starting with `v0.6.1`, the runtime bounds a complete review run to 13 minutes,
+including credential retries and multi-to-single dispatch fallback. Existing
+15-minute workflows remain supported. The canonical consumer template uses a
+recommended 30-minute outer timeout for additional runner, teardown, and
+posting margin.
 
 ## License
 

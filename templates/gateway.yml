@@ -55,9 +55,11 @@ jobs:
           && contains(github.event.comment.body, '/gateway'))
       }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Recommended outer safety envelope. Gateway bounds the complete review
+    # run to 13 minutes, including retries and dispatch fallback.
+    timeout-minutes: 30
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.6.0
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.6.1
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
