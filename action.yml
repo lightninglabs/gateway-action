@@ -93,7 +93,7 @@ inputs:
   runtime_ref:
     description: 'Ref (tag/branch/SHA) of the private lightninglabs/gateway runtime to check out and run. Defaults to the release this action repo was tagged in lockstep with. Override only for testing an unreleased runtime.'
     required: false
-    default: 'v0.6.0'
+    default: 'v0.7.0'
 
 runs:
   using: composite
