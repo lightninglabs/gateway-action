@@ -55,9 +55,12 @@ jobs:
           && contains(github.event.comment.body, '/gateway'))
       }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # A GitHub timeout cancels the job before gateway can post an error,
+    # leaving a stale holding comment; real multi reviews have run past
+    # 15 minutes, so leave room.
+    timeout-minutes: 30
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.6.0
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.7.0
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
