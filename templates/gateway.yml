@@ -59,8 +59,13 @@ jobs:
     # leaving a stale holding comment; real multi reviews have run past
     # 15 minutes, so leave room.
     timeout-minutes: 30
+    # Optional: the default review effort level (low, medium, high, xhigh,
+    # max). Unset means medium. Maintainers can override it per PR with
+    # `/gateway review <level>`; plain re-reviews reuse the PR's last level.
+    # env:
+    #   GATEWAY_CLAUDE_EFFORT: medium
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.7.0
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.7.1
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
