@@ -37,8 +37,8 @@ on:
     types: [review_requested, closed]
 
 permissions:
-  # The action mints an App installation token internally; the GITHUB_TOKEN
-  # handed to this shim is unused, so we minimise it.
+  # The job-scoped token authorizes the caller before the action reads any App
+  # or Claude credential. The action mints a narrower App token afterward.
   contents: read
 
 jobs:
