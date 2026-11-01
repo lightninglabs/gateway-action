@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Test authorization boundary
+        run: ./tests/authorize-event.sh
+
+      - name: Check shell scripts
+        run: shellcheck authorize-event.sh bootstrap-token.sh tests/authorize-event.sh tests/bin/gh

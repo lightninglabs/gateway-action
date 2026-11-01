@@ -20,17 +20,21 @@ private; only this thin entry point is public.
 
 ## How it works
 
-The composite action ([`action.yml`](action.yml)) runs three steps:
+The composite action ([`action.yml`](action.yml)) runs five steps:
 
-1. **Mint bootstrap token** — [`bootstrap-token.sh`](bootstrap-token.sh) mints a
+1. **Authorize the event** — [`authorize-event.sh`](authorize-event.sh) checks
+   the triggering actor with the job-scoped `GITHUB_TOKEN`. An unauthorized
+   event stops here, before any App or Claude credential is referenced.
+2. **Mint bootstrap token** — [`bootstrap-token.sh`](bootstrap-token.sh) mints a
    **least-privilege** installation token (`contents:read` on
    `lightninglabs/gateway` only) from the consumer's `app_id` / `private_key`.
    It discovers the gateway installation rather than hardcoding an id. This bit
    of logic must live here because it runs *before* the private runtime is on
    disk.
-2. **Checkout runtime** — [`actions/checkout`](https://github.com/actions/checkout)
+3. **Checkout runtime** — [`actions/checkout`](https://github.com/actions/checkout)
    pulls `lightninglabs/gateway` at `runtime_ref` using that bootstrap token.
-3. **Run** — execs `scripts/run-review.sh` from the checked-out tree, the same
+4. **Install Claude Code CLI**.
+5. **Run** — execs `scripts/run-review.sh` from the checked-out tree, the same
    entry point as the private action. `run-review.sh` mints its *own* token
    (scoped to the **consumer's** install, with review write perms) — a
    different installation and scope from the bootstrap token.

@@ -98,11 +98,29 @@ inputs:
 runs:
   using: composite
   steps:
-    # 1. Mint a least-privilege token (contents:read on gateway only) that can
+    # 1. Authorize with the job-scoped token before any App or Claude
+    #    credential is referenced by a step.
+    - name: Authorize gateway event
+      id: authorize
+      shell: bash
+      env:
+        GATEWAY_AUTH_TOKEN:   ${{ github.token }}
+        GATEWAY_EVENT_NAME:   ${{ github.event_name }}
+        GATEWAY_EVENT_ACTION: ${{ github.event.action }}
+        GATEWAY_REPO:         ${{ github.repository }}
+        GATEWAY_ACTOR:        ${{ github.event.sender.login }}
+        GATEWAY_PR_AUTHOR:    ${{ github.event.issue.user.login || github.event.pull_request.user.login }}
+        GATEWAY_COMMENT_BODY: ${{ github.event.comment.body }}
+      run: |
+        authorized="$("${GITHUB_ACTION_PATH}/authorize-event.sh")"
+        echo "authorized=${authorized}" >> "${GITHUB_OUTPUT}"
+
+    # 2. Mint a least-privilege token (contents:read on gateway only) that can
     #    read the private runtime. bootstrap-token.sh discovers the installation
     #    and scopes the token; the org installation id is not hardcoded.
     - name: Mint bootstrap token (reads private gateway runtime)
       id: bootstrap
+      if: steps.authorize.outputs.authorized == 'true'
       shell: bash
       env:
         BOOTSTRAP_APP_ID:      ${{ inputs.app_id }}
@@ -112,9 +130,10 @@ runs:
         echo "::add-mask::${TOKEN}"
         echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
 
-    # 2. Pull the private runtime at the pinned, lockstep ref. persist-credentials
+    # 3. Pull the private runtime at the pinned, lockstep ref. persist-credentials
     #    is off — run-review.sh authenticates independently for its gh calls.
     - name: Checkout gateway runtime
+      if: steps.authorize.outputs.authorized == 'true'
       uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       with:
         repository: lightninglabs/gateway
@@ -124,15 +143,19 @@ runs:
         persist-credentials: false
 
     - name: Install Claude Code CLI
+      if: steps.authorize.outputs.authorized == 'true'
       shell: bash
       run: npm install -g @anthropic-ai/claude-code
 
-    # 3. Same entry point as the private action. run-review.sh derives its own
+    # 5. Same entry point as the private action. run-review.sh derives its own
     #    script dir from BASH_SOURCE, so relative paths into scripts/, handlers/,
     #    skills/ resolve correctly from the checked-out tree.
     - name: Run gateway
+      if: steps.authorize.outputs.authorized == 'true'
       shell: bash
       env:
+        GATEWAY_AUTH_TOKEN: ${{ github.token }}
+        GATEWAY_PR_AUTHOR: ${{ github.event.issue.user.login || github.event.pull_request.user.login }}
         GATEWAY_APP_ID: ${{ inputs.app_id }}
         GATEWAY_PRIVATE_KEY: ${{ inputs.private_key }}
         GATEWAY_INSTALLATION_ID: ${{ inputs.installation_id }}

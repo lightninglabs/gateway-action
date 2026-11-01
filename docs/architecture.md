@@ -16,7 +16,8 @@ There is no per-repo allowlist to work around this. The fix is to put the *entry
 
 ## Two tokens, two installations
 
-The single idea that makes this work is that **two different installation tokens** are minted during a run, with different scopes and purposes:
+After the event is authorized, **two different installation tokens** are minted
+with different scopes and purposes:
 
 | Token | Minted by | Installation | Scope | Used for |
 |-------|-----------|--------------|-------|----------|
@@ -39,16 +40,20 @@ sequenceDiagram
     participant Claude as Anthropic API
 
     Shim->>Action: uses: gateway-action@vX.Y.Z<br/>(resolves — public)
-    Note over Action: Step 1 — bootstrap-token.sh
+    Note over Action: Step 1 — authorize-event.sh
+    Action->>GH: GET actor's repository permission<br/>(job-scoped GITHUB_TOKEN)
+    GH-->>Action: write / admin / read / none
+    Note over Action: Unauthorized events stop here
+    Note over Action: Step 2 — bootstrap-token.sh
     Action->>GH: App JWT → GET /repos/.../gateway/installation
     GH-->>Action: installation id
     Action->>GH: POST access_tokens<br/>{repositories:[gateway], permissions:{contents:read}}
     GH-->>Action: bootstrap token (masked)
-    Note over Action: Step 2 — actions/checkout
+    Note over Action: Step 3 — actions/checkout
     Action->>GH: checkout gateway@runtime_ref (bootstrap token)
     GH-->>Action: runtime tree → .gateway-runtime/
-    Note over Action: Step 3 — install CLI
-    Note over Action: Step 4 — exec runtime
+    Note over Action: Step 4 — install CLI
+    Note over Action: Step 5 — exec runtime
     Action->>Runtime: .gateway-runtime/scripts/run-review.sh
     Runtime->>GH: authenticate.sh → runtime token (consumer install)
     Runtime->>Claude: /code-review skill
@@ -57,10 +62,18 @@ sequenceDiagram
 
 The composite steps in [`action.yml`](../action.yml):
 
-1. **Mint bootstrap token** — `bootstrap-token.sh` produces a least-privilege, repo-scoped `contents:read` token and masks it in the log.
-2. **Checkout runtime** — `actions/checkout` pulls `lightninglabs/gateway` at `runtime_ref` into `.gateway-runtime/`, with `persist-credentials: false`.
-3. **Install Claude Code CLI**.
-4. **Run gateway** — execs `.gateway-runtime/scripts/run-review.sh`. It resolves all of its siblings relative to its own location (`BASH_SOURCE`), so it runs correctly from any checkout path, and mints the runtime token itself.
+1. **Authorize the event** — `authorize-event.sh` uses the job-scoped GitHub
+   token to apply the gateway command policy to the actual event actor. A
+   denial skips every later step.
+2. **Mint bootstrap token** — `bootstrap-token.sh` produces a least-privilege,
+   repo-scoped `contents:read` token and masks it in the log.
+3. **Checkout runtime** — `actions/checkout` pulls `lightninglabs/gateway` at
+   `runtime_ref` into `.gateway-runtime/`, with `persist-credentials: false`.
+4. **Install Claude Code CLI**.
+5. **Run gateway** — execs `.gateway-runtime/scripts/run-review.sh`. It
+   resolves all of its siblings relative to its own location (`BASH_SOURCE`),
+   so it runs correctly from any checkout path, and mints the runtime token
+   itself.
 
 ## Versioning (lockstep)
 
