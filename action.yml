@@ -93,7 +93,7 @@ inputs:
   runtime_ref:
     description: 'Ref (tag/branch/SHA) of the private lightninglabs/gateway runtime to check out and run. Defaults to the release this action repo was tagged in lockstep with. Override only for testing an unreleased runtime.'
     required: false
-    default: 'v0.7.1'
+    default: 'v0.7.2'
 
 runs:
   using: composite
@@ -123,16 +123,51 @@ runs:
         path: .gateway-runtime
         persist-credentials: false
 
+    # 3. Authorize the event before any credential beyond the read-only
+    #    bootstrap token is used: the runtime's authorize-event.sh checks the
+    #    actual event actor with the job-scoped token. A denied event skips
+    #    the CLI install and never hands the App key or Claude credentials to
+    #    a step. (The bootstrap token above is minted first because the
+    #    authorizer lives in the private runtime; it can only read gateway.)
+    #    A runtime older than v0.7.2 has no authorize-event.sh and gates
+    #    permissions itself, so the step lets it through.
+    - name: Authorize gateway event
+      id: authorize
+      shell: bash
+      env:
+        GATEWAY_AUTH_TOKEN:   ${{ github.token }}
+        GATEWAY_EVENT_NAME:   ${{ github.event_name }}
+        GATEWAY_EVENT_ACTION: ${{ github.event.action }}
+        GATEWAY_REPO:         ${{ github.repository }}
+        GATEWAY_ACTOR:        ${{ github.event.sender.login }}
+        GATEWAY_PR_AUTHOR:    ${{ github.event.issue.user.login || github.event.pull_request.user.login }}
+        GATEWAY_COMMENT_BODY: ${{ github.event.comment.body }}
+      run: |
+        authorizer="${GITHUB_WORKSPACE}/.gateway-runtime/scripts/authorize-event.sh"
+        if [[ -x "${authorizer}" ]]; then
+          authorized="$("${authorizer}")"
+        else
+          echo "::notice::runtime has no authorize-event.sh; it gates permissions itself"
+          authorized=true
+        fi
+        echo "authorized=${authorized}" >> "${GITHUB_OUTPUT}"
+
     - name: Install Claude Code CLI
+      if: steps.authorize.outputs.authorized == 'true'
       shell: bash
       run: npm install -g @anthropic-ai/claude-code
 
-    # 3. Same entry point as the private action. run-review.sh derives its own
+    # 4. Same entry point as the private action. run-review.sh derives its own
     #    script dir from BASH_SOURCE, so relative paths into scripts/, handlers/,
-    #    skills/ resolve correctly from the checked-out tree.
+    #    skills/ resolve correctly from the checked-out tree. It repeats the
+    #    authorization with GATEWAY_AUTH_TOKEN, then unsets it before any
+    #    handler or the claude CLI runs.
     - name: Run gateway
+      if: steps.authorize.outputs.authorized == 'true'
       shell: bash
       env:
+        GATEWAY_AUTH_TOKEN: ${{ github.token }}
+        GATEWAY_PR_AUTHOR: ${{ github.event.issue.user.login || github.event.pull_request.user.login }}
         GATEWAY_APP_ID: ${{ inputs.app_id }}
         GATEWAY_PRIVATE_KEY: ${{ inputs.private_key }}
         GATEWAY_INSTALLATION_ID: ${{ inputs.installation_id }}

@@ -47,8 +47,11 @@ sequenceDiagram
     Note over Action: Step 2 — actions/checkout
     Action->>GH: checkout gateway@runtime_ref (bootstrap token)
     GH-->>Action: runtime tree → .gateway-runtime/
-    Note over Action: Step 3 — install CLI
-    Note over Action: Step 4 — exec runtime
+    Note over Action: Step 3 — authorize event
+    Action->>GH: collaborator permission (job GITHUB_TOKEN)
+    Note over Action: denied → stop; no CLI, no App or Claude credentials
+    Note over Action: Step 4 — install CLI
+    Note over Action: Step 5 — exec runtime
     Action->>Runtime: .gateway-runtime/scripts/run-review.sh
     Runtime->>GH: authenticate.sh → runtime token (consumer install)
     Runtime->>Claude: /code-review skill
@@ -59,8 +62,9 @@ The composite steps in [`action.yml`](../action.yml):
 
 1. **Mint bootstrap token** — `bootstrap-token.sh` produces a least-privilege, repo-scoped `contents:read` token and masks it in the log.
 2. **Checkout runtime** — `actions/checkout` pulls `lightninglabs/gateway` at `runtime_ref` into `.gateway-runtime/`, with `persist-credentials: false`.
-3. **Install Claude Code CLI**.
-4. **Run gateway** — execs `.gateway-runtime/scripts/run-review.sh`. It resolves all of its siblings relative to its own location (`BASH_SOURCE`), so it runs correctly from any checkout path, and mints the runtime token itself.
+3. **Authorize event** — runs the runtime's `scripts/authorize-event.sh`, which checks the actual event actor and command with the job-scoped `GITHUB_TOKEN` (one read-only permission lookup). A denied event skips every later step, so the CLI is not installed and the App key and Claude credentials never reach a step. The bootstrap token from step 1 is minted before this check because the authorizer lives in the private runtime; it can only read `gateway`. A runtime older than `v0.7.2` has no authorizer and gates permissions itself, so the step lets it through.
+4. **Install Claude Code CLI** (authorized events only).
+5. **Run gateway** (authorized events only) — execs `.gateway-runtime/scripts/run-review.sh`. It resolves all of its siblings relative to its own location (`BASH_SOURCE`), so it runs correctly from any checkout path. It repeats the authorization, unsets the job token, and mints the runtime token itself.
 
 ## Versioning (lockstep)
 

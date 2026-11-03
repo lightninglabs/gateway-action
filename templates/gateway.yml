@@ -37,23 +37,46 @@ on:
     types: [review_requested, closed]
 
 permissions:
-  # The action mints an App installation token internally; the GITHUB_TOKEN
-  # handed to this shim is unused, so we minimise it.
+  # The job-scoped token is used only for a read-only permission lookup that
+  # authorizes the caller before any App or Claude credential is used. The
+  # action mints its own App token afterward.
   contents: read
 
 jobs:
   review:
     # Comment events fire for every comment; gate on the /gateway prefix
     # so non-command comments don't boot a runner at all.
+    #
+    # Also skip comments from anyone who is neither a repo/org member
+    # (OWNER, MEMBER, COLLABORATOR) nor the PR author: no command is open
+    # to them, so their /gateway comments would only boot a runner to be
+    # refused. This is a cost pre-filter, not the permission check — the
+    # runtime still verifies every command against the collaborators API.
+    # Caveat: an org member whose membership is PRIVATE can appear as
+    # CONTRIBUTOR here, so their commands are skipped until they make
+    # their membership public (or you add their login to this filter).
     if: >-
       ${{
         github.event_name == 'pull_request' ||
         (github.event_name == 'issue_comment'
           && github.event.issue.pull_request != null
-          && contains(github.event.comment.body, '/gateway')) ||
+          && contains(github.event.comment.body, '/gateway')
+          && (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+            || github.event.comment.user.login == github.event.issue.user.login)) ||
         (github.event_name == 'pull_request_review_comment'
-          && contains(github.event.comment.body, '/gateway'))
+          && contains(github.event.comment.body, '/gateway')
+          && (contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+            || github.event.comment.user.login == github.event.pull_request.user.login))
       }}
+    # Optional: serialize each user's commands on a PR, so a burst of
+    # comments runs at most one job at a time. Off by default because
+    # GitHub keeps only the NEWEST pending run per group and cancels the
+    # older pending ones without a trace — two commands posted while a
+    # review is running would lose the first. pull_request events key on
+    # the run id so close cleanup is never cancelled.
+    # concurrency:
+    #   group: gateway-${{ github.event.issue.number || github.event.pull_request.number }}-${{ github.event_name == 'pull_request' && github.run_id || github.event.comment.user.login }}
+    #   cancel-in-progress: false
     runs-on: ubuntu-latest
     # A GitHub timeout cancels the job before gateway can post an error,
     # leaving a stale holding comment; real multi reviews have run past
@@ -65,7 +88,7 @@ jobs:
     # env:
     #   GATEWAY_CLAUDE_EFFORT: medium
     steps:
-      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.7.1
+      - uses: lightninglabs/gateway-action@REPLACE_WITH_COMMIT_SHA # v0.7.2
         with:
           event_name:      ${{ github.event_name }}
           event_action:    ${{ github.event.action }}
